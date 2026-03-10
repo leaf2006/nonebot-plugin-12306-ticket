@@ -12,4 +12,3 @@ from .tickets import handle_tickets_info
 # )
 
 # config = get_plugin_config(Config)
-
