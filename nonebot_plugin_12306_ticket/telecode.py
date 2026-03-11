@@ -24,3 +24,25 @@ async def get_telecode(from_station_name :str , to_station_name :str) -> Optiona
     
     except Exception:
         return None,None
+    
+async def get_station_name(from_station_telecode: str, to_station_telecode: str) -> Optional[tuple[str, str]]:
+    """
+    通过出发站、到达站的铁路电报码获取车站中文名称
+    """
+    url = API.telecode_url
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=API.headers)
+            station_data = response.text
+            pattern = r"@[^|]*\|([^|]+)\|([^|]+)\|[^|]*"
+            matches = re.findall(pattern, station_data)
+            # 创建电报码到车站名的映射（反转映射）
+            telecode_map = {code: name for name, code in matches}
+
+            from_station_name = telecode_map.get(from_station_telecode, None)
+            to_station_name = telecode_map.get(to_station_telecode, None)
+
+            return from_station_name, to_station_name
+
+    except Exception:
+        return None, None

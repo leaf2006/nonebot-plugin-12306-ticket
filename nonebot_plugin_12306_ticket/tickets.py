@@ -9,38 +9,12 @@ from nonebot.adapters.onebot.v11 import Event
 from nonebot.plugin import PluginMetadata  # type: ignore
 from nonebot.params import CommandArg  # type: ignore
 from nonebot.rule import to_me  # type: ignore
-from .ticket_details import parse_train_data, format_data
-from .get_telecode import get_telecode
+from .ticket_details import format_data, get_basic_info
+from .telecode import get_telecode, get_station_name
 from .get_data import get_12306_remaining_tickets, get_12306_price
 from .api import API
 
 tickets_info = on_command("车票", aliases={"cp","ticket","tickets"}, priority=5, block=True)
-
-# def parse_train_data(data_string):
-#     p = data_string.split('|')
-    
-#     train_result = {
-#         "train_no": p[3],
-#         "start_time": p[8],
-#         "end_time": p[9],
-#         "duration": p[10],
-#         "date": p[13],
-#         "seat_types": p[34],
-#         "tickets": {
-#             "二等座": p[30] if p[30] else "--",
-#             "一等座": p[31] if p[31] else "--",
-#             "商务座": p[32] if p[32] else "--",
-#             "动卧": p[33] if p[33] else "--",
-#             "硬座": p[29] if p[29] else "--",
-#             "软座": p[23] if p[23] else "--",
-#             "硬卧": p[28] if p[28] else "--",
-#             "软卧": p[23] if p[23] else "--",
-#             "高级软卧": p[21] if p[21] else "--",
-#             "无座": p[26] if p[26] else "--"
-#         }
-#     }
-#     return train_result
-
 @tickets_info.handle()
 async def handle_tickets_info(args: Message = CommandArg(), event: Event = None):
     if user_input := args.extract_plain_text():
@@ -123,24 +97,31 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         
         #数据整合部分与票价获取
 
-        await tickets_info.send("正在加载数据，请稍候...")
+        await tickets_info.send("正在加载，请耐心等待...")
 
         output = ""
+        ticket_output = ""
         hr_line = "------------------------------\n"
         for data_count in range(len(current_remaining_data)):
             if data_count < 10:
 
                 ticket_details = current_remaining_data[data_count] # 每个列车的余票元数据
+                train_id,departure_station_name,terminal_station_name,current_from_station_name,current_to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
                 ticket_price = await get_12306_price(ticket_details,train_date)
-                result = format_data(ticket_details,ticket_price)
-                print(result)
-
-                # ticket_price_format_normal = format_pricesystem(ticket_price)
-                # print(ticket_price)
-                # print(ticket_price_format_normal)
+                ticket_result = format_data(ticket_details,ticket_price)
+                for seat_types, ticket_count in ticket_result.items():
+                    ticket_output += f"{seat_types}：{ticket_count}\n"
+                output += Message ([
+                     f"{train_id}（{departure_station_name}——{terminal_station_name}）\n",
+                    f"{current_from_station_name} {start_time} —— {end_time} {current_to_station_name}，历时{duration}分\n",
+                    ticket_output,
+                    hr_line,
+                ])
+                ticket_output = ""
 
             else:
                 break
-        # user_id = event.get_user_id()
-        # await tickets_info.finish(MessageSegment.at(user_id) + "信息如下：\n" + output)
+
+        user_id = event.get_user_id()
+        await tickets_info.finish(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "仅显示前10条结果\n数据来源：12306")
         # print(response_data)

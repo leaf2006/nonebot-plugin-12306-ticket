@@ -1,85 +1,10 @@
-def parse_train_data(data_string):
-    p = data_string.split('|')
-    
-    # train_result = {
-    #     "train_no": p[3],          # 车次
-    #     "train_unique_id": p[2],   # 车次唯一编号     
-    #     "start_time": p[8],        # 出发时间
-    #     "from_station_no": p[16],   # 出发站序号
-    #     "to_station_no": p[17],    # 到达站序号 
-    #     "end_time": p[9],          # 到达时间
-    #     "duration": p[10],         # 历时
-    #     "date": p[13],             # 日期
-    #     "seat_types": p[34],       # 席位字典
-    #     "tickets": {
-    #         "二等座": p[30] if p[30] else "--",
-    #         "一等座": p[31] if p[31] else "--",
-    #         "商务座": p[32] if p[32] else "--",
-    #         "动卧": p[33] if p[33] else "--",
-    #         "硬座": p[29] if p[29] else "--",
-    #         "软座": p[23] if p[23] else "--",
-    #         "硬卧": p[28] if p[28] else "--",
-    #         "软卧": p[23] if p[23] else "--",
-    #         "高级软卧": p[21] if p[21] else "--",
-    #         "无座": p[26] if p[26] else "--"
-    #     }
-    # }
-    train_result = {
-        "train_no": p[3],          # 车次
-        "train_unique_id": p[2],   # 车次唯一编号     
-        "start_time": p[8],        # 出发时间
-        "from_station_no": p[16],   # 出发站序号
-        "to_station_no": p[17],    # 到达站序号 
-        "end_time": p[9],          # 到达时间
-        "duration": p[10],         # 历时
-        "date": p[13],             # 日期
-        "seat_types": p[34],       # 席位字典
-        "tickets": {
-            "O": p[30] if p[30] else "--", # 二等座
-            "M": p[31] if p[31] else "--", # 一等座
-            "A9": p[32] if p[32] else "--", # 商务座
-            "F": p[33] if p[33] else "--", # 动卧
-            "A1": p[29] if p[29] else "--", # 硬座
-            "A2": p[23] if p[23] else "--", # 软座
-            "A3": p[28] if p[28] else "--", # 硬卧
-            "A4": p[23] if p[23] else "--", # 软卧
-            "A6": p[21] if p[21] else "--", # 高级软卧
-            "WZ": p[26] if p[26] else "--" # 无座
-        }
-    }
-    return train_result
-
-# def format_pricesystem(seat_code_raw):
-
-#     seat_code_to_chinese = {
-#         'O': '二等座',
-#         'M': '一等座',
-#         'A9': '商务座', 
-#         'F': '动卧',
-#         'A1': '硬座',
-#         'A2': '软座', 
-#         'A3': '硬卧',
-#         'A4': '软卧',
-#         'A5': '高级软卧',
-#         'WZ': '无座'
-#     }
-
-#     avaliable_dict = {}
-#     # except_dict = {}
-#     seat_code_avaliable = seat_code_raw['data']
-#     # except_data = seat_code_avaliable['OT']
-    
-#     # 按照 seat_code_to_chinese 的顺序遍历，确保输出顺序一致
-#     for seat_code, chinese_name in seat_code_to_chinese.items():
-#         if seat_code in seat_code_avaliable and not isinstance(seat_code_avaliable[seat_code], list):
-#             avaliable_dict[chinese_name] = seat_code_avaliable[seat_code]
-
-        
-    
-#     return avaliable_dict
-
+from .telecode import get_station_name
+import asyncio
+# #     return avaliable_dict
 def format_data(ticket_remaining_data,ticket_price):
-
+    """
+    将余票数据与票价数据整合成一个dict
+    """
     seat_code_to_chinese = {
         'O': '二等座',
         'M': '一等座',
@@ -126,3 +51,15 @@ def format_data(ticket_remaining_data,ticket_price):
                 result_dict[seat_name] = f"{result_dict[seat_name]} {remain}张"
 
     return result_dict
+
+async def get_basic_info(ticket_remaining_data):
+    p = ticket_remaining_data.split('|')
+
+    train_no = p[3]
+    departure_station_name, terminal_station_name = await get_station_name(p[4], p[5]) # 始发站，终到站
+    from_station_name, to_station_name = await get_station_name(p[6], p[7]) # 出发站，到达站
+    start_time = p[8] # 出发时
+    end_time = p[9] # 到达时
+    duration = p[10] # 耗时
+
+    return train_no,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration # 怎么那么长，不笑都不行
