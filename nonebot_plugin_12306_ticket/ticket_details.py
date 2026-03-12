@@ -1,6 +1,19 @@
 from .telecode import get_station_name
 import asyncio
-# #     return avaliable_dict
+import re
+
+def remove_trailing_zero(value_str):
+    """
+    如果字符串表示的数字是 X.0 格式，则返回 X；否则返回原始字符串
+    """
+    if ".0" in value_str:
+        value_str = value_str.replace(".0","")
+    else:
+        pass
+
+    return value_str
+
+
 def format_data(ticket_remaining_data,ticket_price):
     """
     将余票数据与票价数据整合成一个dict
@@ -45,10 +58,11 @@ def format_data(ticket_remaining_data,ticket_price):
 
     for seat_name, remain in remaining_ticket.items():
         if seat_name in result_dict:
+            seat_price = result_dict[seat_name]
             if remain == "有" or remain == "无":
-                result_dict[seat_name] = f"{result_dict[seat_name]} {remain}"
+                result_dict[seat_name] = f"{remove_trailing_zero(seat_price)}  {remain}"
             else:
-                result_dict[seat_name] = f"{result_dict[seat_name]} {remain}张"
+                result_dict[seat_name] = f"{remove_trailing_zero(seat_price)}  {remain}张"
 
     return result_dict
 

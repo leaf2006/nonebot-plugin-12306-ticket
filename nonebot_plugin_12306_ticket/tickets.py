@@ -23,7 +23,8 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         user_input_separate = user_input.split(" ")
         input_separate_checker = len(user_input_separate)
         if input_separate_checker > 4 or input_separate_checker < 2:
-            await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）")
+            # await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）") 
+            await tickets_info.finish("格式错误，请输入车次 出发站 到达站 日期（可选）") # TODO
             return
         
         normal_date_pattern = re.compile(r'\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])')
@@ -35,7 +36,7 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
 
         train_date = ""
         train_no = ""
-        from_station_name = ""
+        from_station_name_input = ""
         to_station_name = ""
         
         for i in range(input_separate_checker):
@@ -64,19 +65,20 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
                 train_no = current_arg.upper()
 
             elif station_name_pattern.match(current_arg):
-                if from_station_name == "":
-                    from_station_name = current_arg
+                if from_station_name_input == "":
+                    from_station_name_input = current_arg
                 else:
                     to_station_name = current_arg
         
         if train_date == "" or train_date < today:
             train_date = today
     
-        if not from_station_name or not to_station_name:
-            await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）")
+        if not from_station_name_input or not to_station_name:
+            # await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）")
+            await tickets_info.finish("格式错误，请输入 出发站 到达站 日期（可选）") # TODO
             return
 
-        from_station_telecode, to_station_telecode = await get_telecode(from_station_name, to_station_name)
+        from_station_telecode, to_station_telecode = await get_telecode(from_station_name_input, to_station_name)
         if from_station_telecode is None or to_station_telecode is None:
             await tickets_info.finish("未查询到发站/到站信息，请重新输入")
             return
@@ -106,14 +108,14 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
             if data_count < 10:
 
                 ticket_details = current_remaining_data[data_count] # 每个列车的余票元数据
-                train_id,departure_station_name,terminal_station_name,current_from_station_name,current_to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
+                train_id,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
                 ticket_price = await get_12306_price(ticket_details,train_date)
                 ticket_result = format_data(ticket_details,ticket_price)
                 for seat_types, ticket_count in ticket_result.items():
                     ticket_output += f"{seat_types}：{ticket_count}\n"
                 output += Message ([
-                     f"{train_id}（{departure_station_name}——{terminal_station_name}）\n",
-                    f"{current_from_station_name} {start_time} —— {end_time} {current_to_station_name}，历时{duration}分\n",
+                     f"【{data_count +1}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
+                    f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}分\n",
                     ticket_output,
                     hr_line,
                 ])
@@ -123,5 +125,8 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
                 break
 
         user_id = event.get_user_id()
-        await tickets_info.finish(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "仅显示前10条结果\n数据来源：12306")
+        await tickets_info.finish(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "若结果过多，只会仅显示前10条结果\n数据来源：12306.cn")
         # print(response_data)
+    
+    else:
+        await tickets_info.finish("请输入 出发站 到达站 日期（可选）")
