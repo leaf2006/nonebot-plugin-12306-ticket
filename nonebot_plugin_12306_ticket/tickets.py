@@ -3,11 +3,12 @@
 # import urllib3
 import re
 import datetime
+from typing import Optional
 from nonebot import on_command   # type: ignore
 from nonebot.adapters.onebot.v11 import Bot, MessageEvent, MessageSegment, Message
 from nonebot.adapters.onebot.v11 import Event
 from nonebot.plugin import PluginMetadata  # type: ignore
-from nonebot.params import CommandArg  # type: ignore
+from nonebot.params import CommandArg, ArgPlainText  # type: ignore
 from nonebot.rule import to_me  # type: ignore
 from .ticket_details import format_data, get_basic_info
 from .telecode import get_telecode, get_station_name
@@ -15,6 +16,38 @@ from .get_data import get_12306_remaining_tickets, get_12306_price
 from .api import API
 
 tickets_info = on_command("车票", aliases={"cp","ticket","tickets"}, priority=5, block=True)
+next_page = on_command("下一页", aliases={"next"}, priority=5, block=True)
+
+user_sessions = {}
+
+async def generate_output(current_remaining_data: str,train_date :str,current_index: int) -> Optional[tuple[str, int]]: # 输出模块化
+    hr_line = "------------------------------\n"
+    output = ""
+    ticket_output = ""
+    # if current_index != 0:
+    #     current_index = current_index + 1
+    for data_count in range(current_index,len(current_remaining_data)):
+        if data_count <= current_index + 9:
+
+            ticket_details = current_remaining_data[data_count] # 每个列车的余票元数据
+            train_id,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
+            ticket_price = await get_12306_price(ticket_details,train_date)
+            ticket_result = format_data(ticket_details,ticket_price)
+            for seat_types, ticket_count in ticket_result.items():
+                ticket_output += f"{seat_types}：{ticket_count}\n"
+            output += Message([
+                f"【{data_count +1}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
+                f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}分\n",
+                ticket_output,
+                hr_line,
+            ])
+            ticket_output = "" # 重置ticket_output，为下一循环获取车票信息做准备
+        else:
+            break
+    
+    return  output, data_count # TODO
+
+
 @tickets_info.handle()
 async def handle_tickets_info(args: Message = CommandArg(), event: Event = None):
     if user_input := args.extract_plain_text():
@@ -25,7 +58,6 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         if input_separate_checker > 4 or input_separate_checker < 2:
             # await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）") 
             await tickets_info.finish("格式错误，请输入车次 出发站 到达站 日期（可选）") # TODO
-            return
         
         normal_date_pattern = re.compile(r'\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])')
         chinese_date_pattern = re.compile(r'\d{4}年([1-9]|1[0-2])月([1-9]|[12]\d|3[01])日')
@@ -81,7 +113,6 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         from_station_telecode, to_station_telecode = await get_telecode(from_station_name_input, to_station_name)
         if from_station_telecode is None or to_station_telecode is None:
             await tickets_info.finish("未查询到发站/到站信息，请重新输入")
-            return
         # 处理用户数据结束
         
         # 余票数据获取
@@ -89,44 +120,77 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
 
         if response_data == "ERR":
             await tickets_info.finish("访问12306出现错误，请稍后再试")
-            return
         
         current_remaining_data = response_data['data']['result']
 
         if not current_remaining_data or len(current_remaining_data) == 0:
             await tickets_info.finish("未查询到符合条件的车次信息")
-            return
         
         #数据整合部分与票价获取
 
         await tickets_info.send("正在加载，请耐心等待...")
 
-        output = ""
-        ticket_output = ""
         hr_line = "------------------------------\n"
-        for data_count in range(len(current_remaining_data)):
-            if data_count < 10:
-
-                ticket_details = current_remaining_data[data_count] # 每个列车的余票元数据
-                train_id,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
-                ticket_price = await get_12306_price(ticket_details,train_date)
-                ticket_result = format_data(ticket_details,ticket_price)
-                for seat_types, ticket_count in ticket_result.items():
-                    ticket_output += f"{seat_types}：{ticket_count}\n"
-                output += Message ([
-                     f"【{data_count +1}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
-                    f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}分\n",
-                    ticket_output,
-                    hr_line,
-                ])
-                ticket_output = ""
-
-            else:
-                break
+        current_index = 0
+        output, data_count = await generate_output(current_remaining_data, train_date, current_index)
 
         user_id = event.get_user_id()
-        await tickets_info.finish(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "若结果过多，只会仅显示前10条结果\n数据来源：12306.cn")
-        # print(response_data)
-    
+        await tickets_info.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "数据来源：12306.cn")
+
+        if data_count < len(current_remaining_data) -1:
+            limit_time_start = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M") # 获取当前时间，在用户激活/下一页 的时候进行时间比对
+            user_sessions[user_id] = {
+                'data': current_remaining_data,
+                'current_index': data_count,
+                'train_date': train_date,
+                'limit_time_start': limit_time_start
+            }
+            await tickets_info.finish("如需继续查看，请输入 /下一页，五分钟内有效")
+        else:
+            await tickets_info.finish()
+
     else:
-        await tickets_info.finish("请输入 出发站 到达站 日期（可选）")
+        await tickets_info.send("请输入 出发站 到达站 日期（可选）")
+
+@next_page.handle()
+async def handle_next_page(event: Event = None):
+    user_id = event.get_user_id()
+    if user_id not in user_sessions:
+        await next_page.finish()
+    
+    session = user_sessions[user_id]
+    current_remaining_data = session['data']
+    current_index = session['current_index']
+    train_date = session['train_date']
+    limit_time_start = session['limit_time_start']
+
+    # 判断用户是否超时请求 /下一页
+    now_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+    time1 = datetime.datetime.strptime(limit_time_start, "%Y-%m-%d-%H:%M")
+    time2 = datetime.datetime.strptime(now_time, "%Y-%m-%d-%H:%M")
+    time_diff = abs((time1 - time2).total_seconds())
+    if time_diff > 300: # 五分钟
+        await next_page.finish()
+
+    await tickets_info.send("正在加载，请耐心等待...")
+    hr_line = "------------------------------\n"
+    output, data_count = await generate_output(current_remaining_data, train_date, current_index)
+    await next_page.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "数据来源：12306.cn")
+
+    if data_count < len(current_remaining_data) -1:
+        limit_time_start = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M") # 获取当前时间，在用户激活/下一页 的时候进行时间比对
+        session['current_index'] = data_count
+        session['limit_time_start'] = now_time
+        await next_page.finish("如需继续查看，请输入 /下一页，五分钟内有效")
+    else:
+        del user_sessions[user_id] # 清除会话
+        await next_page.finish()
+
+
+    
+    
+
+
+
+
+    
