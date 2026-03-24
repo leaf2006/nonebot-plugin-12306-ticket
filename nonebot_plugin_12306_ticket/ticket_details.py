@@ -1,5 +1,6 @@
 from .telecode import get_station_name
 import asyncio
+import datetime
 import re
 
 def remove_trailing_zero(value_str):
@@ -74,6 +75,19 @@ async def get_basic_info(ticket_remaining_data):
     from_station_name, to_station_name = await get_station_name(p[6], p[7]) # 出发站，到达站
     start_time = p[8] # 出发时
     end_time = p[9] # 到达时
-    duration = p[10] # 耗时
+    duration_raw = p[10] # 耗时
+    # duration_raw = duration_raw.replace('分','')
+    hours, minutes = duration_raw.split(':')
+    hours = int(hours)
+    minutes = int(minutes)
+    if hours == 0:
+        duration = f'{minutes}'
+    elif minutes == 0:
+        duration = f'{hours}小时整'
+    else:
+        duration = f'{hours}小时{minutes}'
 
     return train_no,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration # 怎么那么长，不笑都不行
+
+def time_filter(current_remaining_data, range_start_time, range_end_time):
+    pass # TODO

@@ -14,17 +14,21 @@ from .ticket_details import format_data, get_basic_info
 from .telecode import get_telecode, get_station_name
 from .get_data import get_12306_remaining_tickets, get_12306_price
 from .api import API
+from .utils import utils
 
-tickets_info = on_command("车票", aliases={"cp","ticket","tickets"}, priority=5, block=True)
+tickets_info = on_command("车票", aliases={"ticket","tickets"}, priority=5, block=True)
 next_page = on_command("下一页", aliases={"next"}, priority=5, block=True)
 
 user_sessions = {}
-async def generate_output(current_remaining_data: str,train_date :str,current_index: int) -> Optional[tuple[str, int]]: # 输出模块化
+async def generate_output(current_remaining_data: str,train_date :str,current_index: int) -> Optional[tuple[str, int]]:
+    """
+    输出模块化
+    """
     hr_line = "------------------------------\n"
     output = ""
     ticket_output = ""
-    # if current_index != 0:
-    #     current_index = current_index + 1
+    if current_index != 0:
+        current_index = current_index + 1
     for data_count in range(current_index,len(current_remaining_data)):
         if data_count <= current_index + 9:
 
@@ -44,9 +48,12 @@ async def generate_output(current_remaining_data: str,train_date :str,current_in
         else:
             break
     
-    return  output, data_count # TODO
+    return  output, data_count
 
 def content(current_remaining_data):
+    """
+    计算输出结果总页数
+    """
     sum_of_result = len(current_remaining_data)
     quotient, remainder = divmod(sum_of_result,10)
     if remainder == 0:
@@ -67,31 +74,24 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         input_separate_checker = len(user_input_separate)
         if input_separate_checker > 4 or input_separate_checker < 2:
             # await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）") 
-            await tickets_info.finish("格式错误，请输入车次 出发站 到达站 日期（可选）") # TODO
+            await tickets_info.finish("格式错误，请输入出发站 到达站 日期（可选）") 
         
-        normal_date_pattern = re.compile(r'\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])')
-        chinese_date_pattern = re.compile(r'\d{4}年([1-9]|1[0-2])月([1-9]|[12]\d|3[01])日')
-        train_no_pattern = re.compile(r'[A-Za-z]\d{1,4}|\d{4}') 
-        station_name_pattern = re.compile(r'^[\u4e00-\u9fff]+$')
-        today = datetime.date.today().strftime("%Y-%m-%d")
-        tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-
         train_date = ""
         train_no = ""
         from_station_name_input = ""
-        to_station_name = ""
+        to_station_name_input = ""
         
         for i in range(input_separate_checker):
             current_arg = user_input_separate[i]
-            normal_date_match = normal_date_pattern.search(current_arg)
-            chinese_date_match = chinese_date_pattern.search(current_arg)
-            train_no_match = train_no_pattern.findall(current_arg)
+            normal_date_match = utils.normal_date_pattern.search(current_arg)
+            chinese_date_match = utils.chinese_date_pattern.search(current_arg)
+            # train_no_match = utils.train_no_pattern.findall(current_arg)
             
             if normal_date_match or chinese_date_match or "今天" in current_arg or "明天" in current_arg:
                 if "今天" in current_arg:
-                    train_date = today
+                    train_date = utils.today
                 elif "明天" in current_arg:
-                    train_date = tomorrow
+                    train_date = utils.tomorrow
                 else:
                     if normal_date_match:
                         year = normal_date_match.group(0)[:4]
@@ -103,25 +103,24 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
                         day = chinese_date_match.group(2)
                     train_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
 
-            elif train_no_match:
-                train_no = current_arg.upper()
+            # elif train_no_match:
+            #     train_no = current_arg.upper()
 
-            elif station_name_pattern.match(current_arg):
+            elif utils.station_name_pattern.match(current_arg):
                 if from_station_name_input == "":
                     from_station_name_input = current_arg
                 else:
-                    to_station_name = current_arg
+                    to_station_name_input = current_arg
         
-        if train_date == "" or train_date < today:
-            train_date = today
+        if train_date == "" or train_date < utils.today:
+            train_date = utils.today
     
-        if not from_station_name_input or not to_station_name:
+        if not (from_station_name_input and to_station_name_input):
             # await tickets_info.finish("格式错误，请输入车次（可选） 出发站 到达站 日期（可选）")
-            await tickets_info.finish("格式错误，请输入 出发站 到达站 日期（可选）") # TODO
-            return
+            await tickets_info.finish("格式错误，请输入 出发站 到达站 日期（可选）") 
 
-        from_station_telecode, to_station_telecode = await get_telecode(from_station_name_input, to_station_name)
-        if from_station_telecode is None or to_station_telecode is None:
+        from_station_telecode, to_station_telecode = await get_telecode(from_station_name_input, to_station_name_input)
+        if not (from_station_telecode and to_station_telecode):
             await tickets_info.finish("未查询到发站/到站信息，请重新输入")
         # 处理用户数据结束
         
@@ -143,6 +142,12 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         hr_line = "------------------------------\n"
         current_index = 0
         output, data_count = await generate_output(current_remaining_data, train_date, current_index)
+        # slice = current_remaining_data
+        # test_ouput = await get_12306_price_batch(slice, train_date)
+        # testnum = 0
+        # while testnum < 10:
+        #     print(test_ouput[testnum])
+        #     testnum += 1
 
         user_id = event.get_user_id()
         await tickets_info.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "---【当前第1页，共"+ str(content(current_remaining_data)) + "页】---\n数据来源：12306.cn")
@@ -199,12 +204,3 @@ async def handle_next_page(event: Event = None):
     else:
         del user_sessions[user_id] # 清除会话
         await next_page.finish()
-
-
-    
-    
-
-
-
-
-    

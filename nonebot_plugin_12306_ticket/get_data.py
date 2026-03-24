@@ -1,9 +1,11 @@
 import httpx
+from pyreqwest.client import ClientBuilder
 import re
 import urllib3
+import json
 import asyncio
 from .api import API
-from typing import Optional
+from typing import Optional, List
 
 async def get_12306_remaining_tickets(train_date :str, from_station_telecode :str, to_station_telecode :str) -> Optional[str]:
     """
