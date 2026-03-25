@@ -50,7 +50,7 @@ async def generate_output(current_remaining_data: str,train_date :str,current_in
     
     return  output, data_count
 
-def content(current_remaining_data):
+def content(current_remaining_data): # 翻页有问题
     """
     计算输出结果总页数
     """
@@ -59,7 +59,8 @@ def content(current_remaining_data):
     if remainder == 0:
         page_count = quotient
     elif remainder != 0 and quotient != 0:
-        page_count = quotient + 1
+        # page_count = quotient + 1
+        page_count = quotient
     else:
         page_count = 1
     
@@ -198,7 +199,7 @@ async def handle_next_page(event: Event = None):
     if data_count < len(current_remaining_data) -1:
         limit_time_start = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M") # 获取当前时间，在用户激活/下一页 的时候进行时间比对
         session['current_index'] = data_count
-        session['limit_time_start'] = now_time
+        session['limit_time_start'] = limit_time_start
         session['page'] = page
         await next_page.finish("如需继续查看，请输入 /下一页，五分钟内有效")
     else:

@@ -21,11 +21,16 @@ async def get_12306_remaining_tickets(train_date :str, from_station_telecode :st
 
     # init_url = API.init_url
     try:
-        async with httpx.AsyncClient() as client:
-            init_response = await client.get(API.init_url)
-            query_url_match = re.search(r"'queryUrl':\s*'([^']+)'", init_response.text)
+        # async with httpx.AsyncClient() as client:
+        async with ClientBuilder().default_cookie_store(True).build() as client:
+            # init_response = await client.get(API.init_url)
+            init_response_raw = await client.get(API.init_url).build().send()
+            init_response = await init_response_raw.text()
+            # query_url_match = re.search(r"'queryUrl':\s*'([^']+)'", init_response.text)
+            query_url_match = re.search(r"'queryUrl':\s*'([^']+)'", init_response)
             if not query_url_match:
-                query_url_match = re.search(r"leftTicket/query[A-Z]", init_response.text)
+                # query_url_match = re.search(r"leftTicket/query[A-Z]", init_response.text)
+                query_url_match = re.search(r"leftTicket/query[A-Z]", init_response)
             
             if query_url_match:
                 query_url = query_url_match.group(0) if len(query_url_match.groups()) == 0 else query_url_match.group(1)
@@ -33,11 +38,16 @@ async def get_12306_remaining_tickets(train_date :str, from_station_telecode :st
             else:
                 ticket_query_url = f"{API.ticket_query_url}leftTicket/query"
 
-            response = await client.get(ticket_query_url, params=params)
-            if "error.html" in str(response.url):
+            # response = await client.get(ticket_query_url, params=params)
+            response = await client.get(ticket_query_url).query(params).headers(API.headers).build().send()
+            resp_json = await response.json()
+
+            # if "error.html" in str(response.url):
+            #     return "ERR"
+            if response.status != 200:
                 return "ERR"
             
-            return response.json() # TODO
+            return resp_json # TODO
 
 
     except Exception as e:
@@ -67,15 +77,21 @@ async def get_12306_price(raw_data: str, train_date :str) -> Optional[str]:
     }
 
     try:
-        async with httpx.AsyncClient() as client:
-            init_response = await client.get(API.init_url)
+        # async with httpx.AsyncClient() as client:
+        async with ClientBuilder().default_cookie_store(True).build() as client:
+            # init_response = await client.get(API.init_url)
+            init_response = await client.get(API.init_url).build().send()
 
-            response = await client.get(API.ticket_price_url, params=params)
+            # response = await client.get(API.ticket_price_url, params=params)
+            response = await client.get(API.ticket_price_url).query(params).headers(API.headers).build().send()
+            resp_json = await response.json()
             
-            if "error.html" in str(response.url):
+            # if "error.html" in str(response.url):
+            #     return "ERR"
+            if response.status != 200:
                 return "ERR"
             
-            return response.json()
+            return resp_json
         
     except Exception as e:
         return "ERR"

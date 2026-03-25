@@ -1,4 +1,5 @@
 import httpx
+from pyreqwest.client import ClientBuilder
 import re
 import asyncio
 from .api import API
@@ -10,9 +11,12 @@ async def get_telecode(from_station_name :str , to_station_name :str) -> Optiona
     """
     url = API.telecode_url
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url,headers=API.headers)
-            station_data = response.text
+        # async with httpx.AsyncClient() as client:
+        async with ClientBuilder().build() as client:
+            response = await client.get(url).headers(API.headers).build().send()
+            # response = await client.get(url, headers=API.headers)
+            # station_data = response.text
+            station_data = await response.text()
             pattern = r"@[^|]*\|([^|]+)\|([^|]+)\|[^|]*" # 圆括号 () 表示捕获组，只有被括号包围的部分才会被 re.findall() 提取，没有括号的部分 只用于匹配定位，但不会出现在结果中
             matches = re.findall(pattern,station_data)
             station_map = {name: code for name, code in matches}
@@ -31,9 +35,11 @@ async def get_station_name(from_station_telecode: str, to_station_telecode: str)
     """
     url = API.telecode_url
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=API.headers)
-            station_data = response.text
+        async with ClientBuilder().build() as client:
+            # response = await client.get(url, headers=API.headers)
+            response = await client.get(url).headers(API.headers).build().send()
+            # station_data = response.text
+            station_data = await response.text()
             pattern = r"@[^|]*\|([^|]+)\|([^|]+)\|[^|]*"
             matches = re.findall(pattern, station_data)
             # 创建电报码到车站名的映射（反转映射）
