@@ -1,7 +1,7 @@
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 from .tickets import handle_tickets_info
-# from .scheduled_query import handle_timer
+from .scheduled_query import handle_timer
 
 # from .config import Config
 

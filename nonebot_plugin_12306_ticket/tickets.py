@@ -55,15 +55,8 @@ def content(current_remaining_data): # 翻页有问题
     计算输出结果总页数
     """
     sum_of_result = len(current_remaining_data)
-    quotient, remainder = divmod(sum_of_result,10)
-    if remainder == 0:
-        page_count = quotient
-    elif remainder != 0 and quotient != 0:
-        # page_count = quotient + 1
-        page_count = quotient
-    else:
-        page_count = 1
-    
+    quotient, remainder = divmod(sum_of_result, 10)
+    page_count = quotient + (1 if remainder else 0)
     return page_count
 
 @tickets_info.handle()
@@ -151,11 +144,12 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         #     testnum += 1
 
         user_id = event.get_user_id()
+        session_key = event.get_session_id()
         await tickets_info.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "---【当前第1页，共"+ str(content(current_remaining_data)) + "页】---\n数据来源：12306.cn")
 
         if data_count < len(current_remaining_data) -1:
             limit_time_start = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M") # 获取当前时间，在用户激活/下一页 的时候进行时间比对
-            user_sessions[user_id] = {
+            user_sessions[session_key] = {
                 'data': current_remaining_data,
                 'current_index': data_count,
                 'train_date': train_date,
@@ -172,10 +166,11 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
 @next_page.handle()
 async def handle_next_page(event: Event = None):
     user_id = event.get_user_id()
-    if user_id not in user_sessions:
+    session_key = event.get_session_id()
+    if session_key not in user_sessions:
         await next_page.finish()
     
-    session = user_sessions[user_id]
+    session = user_sessions[session_key]
     current_remaining_data = session['data']
     current_index = session['current_index']
     train_date = session['train_date']
@@ -183,12 +178,12 @@ async def handle_next_page(event: Event = None):
     page = session['page'] + 1
 
     # 判断用户是否超时请求 /下一页
-    now_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+
     time1 = datetime.datetime.strptime(limit_time_start, "%Y-%m-%d-%H:%M")
-    time2 = datetime.datetime.strptime(now_time, "%Y-%m-%d-%H:%M")
+    time2 = datetime.datetime.strptime(utils.now_time, "%Y-%m-%d-%H:%M")
     time_diff = abs((time1 - time2).total_seconds())
     if time_diff > 300: # 五分钟
-        del user_sessions[user_id] # 清除会话
+        del user_sessions[session_key] # 清除会话
         await next_page.finish()
 
     await tickets_info.send("正在加载，请耐心等待...")
@@ -197,11 +192,12 @@ async def handle_next_page(event: Event = None):
     await next_page.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "---【当前第" + str(page) + "页，共"+ str(content(current_remaining_data)) + "页】---\n数据来源：12306.cn")
 
     if data_count < len(current_remaining_data) -1:
-        limit_time_start = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M") # 获取当前时间，在用户激活/下一页 的时候进行时间比对
+        limit_time_start = utils.now_time# 获取当前时间，在用户激活/下一页 的时候进行时间比对 
+        # TODO可以用uitls里的
         session['current_index'] = data_count
         session['limit_time_start'] = limit_time_start
         session['page'] = page
         await next_page.finish("如需继续查看，请输入 /下一页，五分钟内有效")
     else:
-        del user_sessions[user_id] # 清除会话
+        del user_sessions[session_key] # 清除会话
         await next_page.finish()

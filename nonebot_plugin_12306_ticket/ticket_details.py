@@ -14,6 +14,12 @@ def remove_trailing_zero(value_str):
 
     return value_str
 
+def time_range_output(range_start_time_raw, range_end_time_raw):
+    if (range_start_time_raw and range_end_time_raw) != "":
+        return f"{str(range_start_time_raw)}时到{str(range_end_time_raw)}时"
+    else:
+        return ""
+
 
 def format_data(ticket_remaining_data,ticket_price):
     """
@@ -24,6 +30,8 @@ def format_data(ticket_remaining_data,ticket_price):
         'M': '一等座',
         'A9': '商务座', 
         'F': '动卧',
+        'AI': '一等卧',
+        'AJ': '二等卧',
         'A1': '硬座',
         'A2': '软座', 
         'A3': '硬卧',
@@ -49,6 +57,8 @@ def format_data(ticket_remaining_data,ticket_price):
         "一等座": split_remaining_data[31],
         "商务座": split_remaining_data[32],
         "动卧": split_remaining_data[33],
+        "一等卧":split_remaining_data[23],
+        "二等卧":split_remaining_data[28],
         "硬座": split_remaining_data[29],
         "软座": split_remaining_data[23],
         "硬卧": split_remaining_data[28],
@@ -89,5 +99,21 @@ async def get_basic_info(ticket_remaining_data):
 
     return train_no,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration # 怎么那么长，不笑都不行
 
-def time_filter(current_remaining_data, range_start_time, range_end_time):
-    pass # TODO
+def time_filter(current_remaining_data, range_start_time, range_end_time): # TODO
+    if range_start_time == "" or range_end_time == "":
+        return current_remaining_data
+    else:
+        filtered_data = []
+        for data_count in range (len(current_remaining_data)):
+            data = current_remaining_data[data_count]
+            p = data.split('|')
+            start_time_raw = p[8]
+            start_time = datetime.datetime.strptime(start_time_raw, "%H:%M")
+            
+            if start_time > range_start_time and start_time < range_end_time:
+                filtered_data.append(data)
+            else:
+                pass
+        
+        return filtered_data
+    
