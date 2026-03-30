@@ -153,7 +153,7 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
                 'data': current_remaining_data,
                 'current_index': data_count,
                 'train_date': train_date,
-                'limit_time_start': limit_time_start,
+                'limit_time_start': datetime.datetime.now(),
                 'page': 1
             }
             await tickets_info.finish("如需继续查看，请输入 /下一页，五分钟内有效")
@@ -177,13 +177,16 @@ async def handle_next_page(event: Event = None):
     limit_time_start = session['limit_time_start']
     page = session['page'] + 1
 
-    # 判断用户是否超时请求 /下一页
+    # time1 = datetime.datetime.strptime(limit_time_start, "%Y-%m-%d-%H:%M")
+    # time2 = datetime.datetime.strptime(utils.now_time, "%Y-%m-%d-%H:%M")
+    # time_diff = abs((time1 - time2).total_seconds())
+    # if time_diff > 300: # 五分钟
+    #     del user_sessions[session_key] # 清除会话
+    #     await next_page.finish()
 
-    time1 = datetime.datetime.strptime(limit_time_start, "%Y-%m-%d-%H:%M")
-    time2 = datetime.datetime.strptime(utils.now_time, "%Y-%m-%d-%H:%M")
-    time_diff = abs((time1 - time2).total_seconds())
-    if time_diff > 300: # 五分钟
-        del user_sessions[session_key] # 清除会话
+    # 判断用户是否超时请求 /下一页
+    if (datetime.datetime.now() - session["limit_time_start"]).total_seconds() > 300:
+        user_sessions.pop(session_key, None)
         await next_page.finish()
 
     await tickets_info.send("正在加载，请耐心等待...")
@@ -192,12 +195,12 @@ async def handle_next_page(event: Event = None):
     await next_page.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "---【当前第" + str(page) + "页，共"+ str(content(current_remaining_data)) + "页】---\n数据来源：12306.cn")
 
     if data_count < len(current_remaining_data) -1:
-        limit_time_start = utils.now_time# 获取当前时间，在用户激活/下一页 的时候进行时间比对 
-        # TODO可以用uitls里的
+        # limit_time_start = utils.now_time 获取当前时间，在用户激活/下一页 的时候进行时间比对 
+
         session['current_index'] = data_count
-        session['limit_time_start'] = limit_time_start
+        session['limit_time_start'] = datetime.datetime.now()
         session['page'] = page
         await next_page.finish("如需继续查看，请输入 /下一页，五分钟内有效")
     else:
-        del user_sessions[session_key] # 清除会话
+        user_sessions.pop(session_key, None) # 清除会话
         await next_page.finish()

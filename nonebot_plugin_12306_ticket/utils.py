@@ -11,4 +11,4 @@ class utils:
 
     today = datetime.date.today().strftime("%Y-%m-%d")
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    now_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")  
+    # now_time = datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")  
