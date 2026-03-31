@@ -13,7 +13,7 @@ require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler # type: ignore
 
 scheduled_query = on_command("定时查询", priority=5, block=True)
-cancel_scheduled_query = on_command("取消查询",priority=5, block=True)
+cancel_scheduled_query = on_command("取消查询",aliases={"结束查询"} ,priority=5, block=True)
 
 # 存储每个用户的计数
 user_counts = {}  # {user_id: 当前第几次}
@@ -67,7 +67,14 @@ async def generate_output(current_remaining_data :str, train_date :str) -> Optio
     elif more_tickets == True:
         return str(ticket_info_output),"over_ten"
 
-# async def generate_output
+def cleanup_session(session_key):
+    """
+    清理模块化
+    """
+    scheduler.remove_job(f"query_timer_{session_key}")
+    user_counts.pop(session_key, None)
+    user_sessions.pop(session_key,None)
+
 @scheduled_query.handle()
 async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
@@ -172,13 +179,11 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
             output_message = Message ([
                 "✔️您查询的",from_station_name_input,"到",to_station_name_input,"，",range_time_message,"以下车次有票：\n",
                 ticket,
-                # str(scheduled_query_time_raw),str(scheduled_query_unit),"后再次查询",
             ])
         elif status == "over_ten":
             output_message = Message ([
                 "⭐您查询的",from_station_name_input,"到",to_station_name_input,"，",range_time_message,"车票十分充足！以下仅显示部分车次：\n",
                 ticket,
-                # str(scheduled_query_time_raw),str(scheduled_query_unit),"后再次查询",                
             ])
 
         user_id = event.get_user_id()
@@ -217,23 +222,7 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
 
 
         await scheduled_query.finish(MessageSegment.at(user_id) + "\n" + output_message)
-#         user_id = event.user_id
-#         group_id = event.group_id if hasattr(event, "group_id") else None
-        
-#         # 初始化计数器
-#         user_counts[user_id] = 0
-        
-#         # 添加循环任务
-#         scheduler.add_job(
-#             query_reflection,
-#             "interval",
-#             minutes=scheduled_query_time,
-#             args=[bot, user_id, group_id],
-#             id=f"query_timer_{user_id}",
-#             replace_existing=True  # 如果已有任务，替换掉
-#         )
-        
-#         await scheduled_query.send("⏱️ 计时开始，每隔1小时提醒，共5次")
+
     else:
 
         await scheduled_query.finish(none_input_alert)
@@ -270,7 +259,6 @@ async def query_reflection(bot: Bot, user_id: int, group_id: int | None, session
     if status == "no_tickets":
         scheduled_query_result = Message ([
             "❌抱歉，您查询的",from_station_name_input,"到",to_station_name_input,"，",range_time_message,"暂时无票\n",
-            # str(scheduled_query_time_raw),str(scheduled_query_unit),"后再次查询",
         ])
         enable_scheduled_query = True
 
@@ -278,17 +266,15 @@ async def query_reflection(bot: Bot, user_id: int, group_id: int | None, session
         scheduled_query_result = Message ([
             "✔️您查询的",from_station_name_input,"到",to_station_name_input,"，",range_time_message,"以下车次有票：\n",
             ticket,
-            # str(scheduled_query_time_raw),str(scheduled_query_unit),"后再次查询",
         ])
+
     elif status == "over_ten":
         scheduled_query_result = Message ([
             "⭐您查询的",from_station_name_input,"到",to_station_name_input,"，",range_time_message,"车票十分充足！以下仅显示部分车次：\n",
             ticket,
-            # str(scheduled_query_time_raw),str(scheduled_query_unit),"后再次查询",                
         ])
 
     # 发送提醒
-    # next_query_alert = f"{scheduled_query_time_raw}{scheduled_query_unit}后将再次查询"
     output_message = scheduled_query_result + f"{scheduled_query_time_raw}{scheduled_query_unit}后将再次查询\n还将进行{str(10-count)}次查询"
     group_msg = f"[CQ:at,qq={user_id}]\n{output_message}"
     if group_id:
@@ -297,16 +283,11 @@ async def query_reflection(bot: Bot, user_id: int, group_id: int | None, session
         await bot.send_private_msg(user_id=user_id, message=output_message)
     
     if enable_scheduled_query == False:
-        scheduler.remove_job(f"query_timer_{session_key}")
-        del user_counts[session_key]
-        user_sessions.pop(session_key,None)
-
+        cleanup_session(session_key)
     
     # 满10次，停止任务
     if count >= 9:
-        scheduler.remove_job(f"query_timer_{session_key}")
-        del user_counts[session_key]
-        user_sessions.pop(session_key,None)
+        cleanup_session(session_key)
         
         # 发送结束通知
         end_msg = f"{scheduled_query_result}最后一次定时查询完成！"
@@ -328,7 +309,5 @@ async def handle_cancel_scheduled_query(bot: Bot, event: MessageEvent):
     if not scheduler.get_job(job_id):
         await cancel_scheduled_query.finish("你并没有正在进行的定时查询任务，无法取消")
     else:
-        scheduler.remove_job(f"query_timer_{session_key}")
-        user_counts.pop(session_key, None)
-        user_sessions.pop(session_key,None)
+        cleanup_session(session_key)
         await cancel_scheduled_query.finish("已取消定时查询任务")
