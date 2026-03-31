@@ -70,8 +70,10 @@ def format_data(ticket_remaining_data,ticket_price):
     for seat_name, remain in remaining_ticket.items():
         if seat_name in result_dict:
             seat_price = result_dict[seat_name]
-            if remain == "有" or remain == "无":
-                result_dict[seat_name] = f"{remove_trailing_zero(seat_price)}  {remain}"
+            if remain == "有" or remain == "无" or not remain:
+                result_dict[seat_name] = f"{remove_trailing_zero(seat_price)}  {remain or '无'}" # Fixed
+            elif remain == "*":
+                result_dict[seat_name] = f"{remove_trailing_zero(seat_price)}  暂未开售"
             else:
                 result_dict[seat_name] = f"{remove_trailing_zero(seat_price)}  {remain}张"
 
