@@ -1,14 +1,21 @@
 [project]
 name = "nonebot-plugin-12306-ticket"
 version = "0.1.0"
-description = "nonebot-plugin-12306-ticket"
+description = "12306车票查询机器人，助你漫漫回家路"
+authors = [
+    { name = "leaf2006", email = "leafdeveloper@qq.com" }
+]
 readme = "README.md"
 requires-python = ">=3.11, <4.0"
 dependencies = [
-    "nonebot2[fastapi]>=2.4.4",
+    "nonebot2>=2.4.4",
     "nonebot-adapter-onebot>=2.4.6",
     "nonebot-plugin-apscheduler>=0.5.0",
+    "pyreqwest>=0.9.0",
 ]
+
+[project.urls]
+homepage = "https://github.com/leaf2006/nonebot-plugin-12306-ticket"
 
 [project.optional-dependencies]
 dev = [

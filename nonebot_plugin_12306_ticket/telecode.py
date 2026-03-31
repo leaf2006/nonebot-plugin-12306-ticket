@@ -1,4 +1,3 @@
-import httpx
 from pyreqwest.client import ClientBuilder
 import re
 import asyncio
@@ -11,7 +10,6 @@ async def get_telecode(from_station_name :str , to_station_name :str) -> Optiona
     """
     url = API.telecode_url
     try:
-        # async with httpx.AsyncClient() as client:
         async with ClientBuilder().build() as client:
             response = await client.get(url).headers(API.headers).build().send()
             # response = await client.get(url, headers=API.headers)

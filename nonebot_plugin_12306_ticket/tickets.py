@@ -1,6 +1,3 @@
-# import httpx
-# import json
-# import urllib3
 import re
 import datetime
 from typing import Optional

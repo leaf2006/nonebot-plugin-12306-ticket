@@ -1,4 +1,3 @@
-import httpx
 from pyreqwest.client import ClientBuilder
 import re
 import urllib3
@@ -21,7 +20,6 @@ async def get_12306_remaining_tickets(train_date :str, from_station_telecode :st
 
     # init_url = API.init_url
     try:
-        # async with httpx.AsyncClient() as client:
         async with ClientBuilder().default_cookie_store(True).build() as client:
             # init_response = await client.get(API.init_url)
             init_response_raw = await client.get(API.init_url).build().send()
@@ -77,7 +75,6 @@ async def get_12306_price(raw_data: str, train_date :str) -> Optional[str]:
     }
 
     try:
-        # async with httpx.AsyncClient() as client:
         async with ClientBuilder().default_cookie_store(True).build() as client:
             # init_response = await client.get(API.init_url)
             init_response = await client.get(API.init_url).build().send()
