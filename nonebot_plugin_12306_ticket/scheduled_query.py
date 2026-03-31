@@ -27,41 +27,44 @@ async def generate_output(current_remaining_data :str, train_date :str) -> Optio
     ticket_info_output = ""
     ticket_output = ""
     ticket_avaliable_count = 0
-    ticket_avaliable  = False
+    # 标记是否有超过10趟有票车次（仅展示前10趟）
+    more_tickets = False
     for data_count in range(len(current_remaining_data)):
         ticket_details = current_remaining_data[data_count]
         split_remaining_data = ticket_details.split('|')
-        more_tickets = False
+        # 每趟车都重新判断一次，避免沿用上一趟的有票状态
+        ticket_avaliable = False
         pending_test_seat_types = [30,31,32,33,29,23,28,21,26]
         for test_seat_types in pending_test_seat_types:
             remaining_ticket = split_remaining_data[test_seat_types]
-            if remaining_ticket != "无" and remaining_ticket != "" and remaining_ticket != None:
-                ticket_avaliable  = True
-                ticket_avaliable_count += 1
+            if remaining_ticket != "无" and remaining_ticket != "*" and remaining_ticket != "" and remaining_ticket != None: # 增加*,标*的是未开售车票
+                ticket_avaliable = True
                 break
         
-        if ticket_avaliable == True and ticket_avaliable_count <= 10:
+        if ticket_avaliable == True:
+            ticket_avaliable_count += 1
+            if ticket_avaliable_count > 10:
+                more_tickets = True
+                break
+
             train_id,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
             ticket_price = await get_12306_price(ticket_details, train_date)
             ticket_result = format_data(ticket_details, ticket_price)
             for seat_types, ticket_count in ticket_result.items():
                 ticket_output += f"{seat_types}：{ticket_count}\n"
             ticket_info_output += Message ([
-                f"【{data_count +1}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
+                f"【{ticket_avaliable_count}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
                 f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}分\n",
                 ticket_output,
                 hr_line,
             ])
             ticket_output = "" # 重置
-        elif ticket_avaliable == True and ticket_avaliable_count >10:
-            more_tickets = True
-            break
     
-    if ticket_avaliable == False:
+    if ticket_avaliable_count == 0:
         return "","no_tickets"
-    elif ticket_avaliable == True and more_tickets == False:
+    elif more_tickets == False:
         return str(ticket_info_output),"ten_or_less"
-    elif ticket_avaliable == True and more_tickets == True:
+    elif more_tickets == True:
         return str(ticket_info_output),"over_ten"
 
 # async def generate_output
@@ -85,6 +88,9 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
         to_station_name_input = ""
         range_start_time = ""
         range_end_time = ""
+        # 时间范围为可选参数，先给默认值，避免后续未定义
+        range_start_time_raw = ""
+        range_end_time_raw = ""
 
         for i in range(input_separate_checker):
             current_arg = user_input_separate[i]
@@ -128,6 +134,10 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
 
         if train_date == "" or train_date < utils.today:
             train_date = utils.today 
+
+        # 用户输入了时间范围时，要求结束时间必须晚于开始时间
+        if range_start_time and range_end_time and range_end_time <= range_start_time:
+            await scheduled_query.finish("时间范围输入错误：结束时间必须大于起始时间")
         # 获取并格式化用户输入结束
     
         # 处理部分错误
