@@ -1,5 +1,4 @@
 # Copyright(c) Leafdeveloper 2026
-# 本文件用于实现12306车票的定时查询
 
 from nonebot import on_command
 from nonebot.params import CommandArg, ArgPlainText  # type: ignore
@@ -26,7 +25,6 @@ async def generate_output(current_remaining_data :str, train_date :str) -> Optio
     """
     查询余票并输出模块化
     """
-    hr_line = "------------------------------\n"
     ticket_info_output = ""
     ticket_output = ""
     ticket_avaliable_count = 0
@@ -37,7 +35,7 @@ async def generate_output(current_remaining_data :str, train_date :str) -> Optio
         split_remaining_data = ticket_details.split('|')
         # 每趟车都重新判断一次，避免沿用上一趟的有票状态
         ticket_avaliable = False
-        pending_test_seat_types = [30,31,32,33,29,23,28,21,26]
+        pending_test_seat_types = [30,31,32,33,29,23,28,21,26] # 遍历所有车票看看有没有票
         for test_seat_types in pending_test_seat_types:
             remaining_ticket = split_remaining_data[test_seat_types]
             if remaining_ticket != "无" and remaining_ticket != "*" and remaining_ticket != "" and remaining_ticket != None: # 增加*,标*的是未开售车票
@@ -59,7 +57,7 @@ async def generate_output(current_remaining_data :str, train_date :str) -> Optio
                 f"【{ticket_avaliable_count}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
                 f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}\n",
                 ticket_output,
-                hr_line,
+                utils.hr_line,
             ])
             ticket_output = "" # 重置
     
