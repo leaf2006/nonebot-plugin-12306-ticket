@@ -1,6 +1,6 @@
-from pyreqwest.client import ClientBuilder
+from pyreqwest.client import ClientBuilder # type: ignore
 import re
-import asyncio
+# import asyncio
 from .api import API
 from typing import Optional
 

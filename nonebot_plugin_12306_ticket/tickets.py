@@ -1,4 +1,7 @@
-import re
+# copyright(c) Leafdeveloper 2026
+# 本文件用于实现12306车票的常规查询
+# TODO 计划与scheduled_query一样加入时间限制
+
 import datetime
 from typing import Optional
 from nonebot import on_command   # type: ignore
@@ -24,10 +27,11 @@ async def generate_output(current_remaining_data: str,train_date :str,current_in
     hr_line = "------------------------------\n"
     output = ""
     ticket_output = ""
-    if current_index != 0:
-        current_index = current_index + 1
-    for data_count in range(current_index,len(current_remaining_data)):
-        if data_count <= current_index + 9:
+    start_index = current_index + 1
+    last_index = current_index
+    page_limit = start_index + 10
+    for data_count in range(start_index,len(current_remaining_data)):
+        if data_count < page_limit:
 
             ticket_details = current_remaining_data[data_count] # 每个列车的余票元数据
             train_id,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration = await get_basic_info(ticket_details)
@@ -37,7 +41,7 @@ async def generate_output(current_remaining_data: str,train_date :str,current_in
                 ticket_output += f"{seat_types}：{ticket_count}\n"
             output += Message([
                 f"【{data_count +1}】{train_id}（{departure_station_name}——{terminal_station_name}）\n",
-                f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}分\n",
+                f"{from_station_name} {start_time} —— {end_time} {to_station_name}，历时{duration}\n",
                 ticket_output,
                 hr_line,
             ])
@@ -45,14 +49,18 @@ async def generate_output(current_remaining_data: str,train_date :str,current_in
         else:
             break
     
-    return  output, data_count
+        last_index = data_count
+    return  output, last_index # type: ignore
 
-def content(current_remaining_data): # 翻页有问题
+def content(current_remaining_data): # Fix:翻页问题初步解决
     """
     计算输出结果总页数
     """
+    # 先统计当前查询结果一共有多少条列车信息
     sum_of_result = len(current_remaining_data)
+    # 通过整除和取余，计算完整页数和不足一页的余数
     quotient, remainder = divmod(sum_of_result, 10)
+    # 如果有余数，说明还要额外加一页
     page_count = quotient + (1 if remainder else 0)
     return page_count
 
@@ -131,8 +139,7 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
         await tickets_info.send("正在加载，请耐心等待...")
 
         hr_line = "------------------------------\n"
-        current_index = 0
-        output, data_count = await generate_output(current_remaining_data, train_date, current_index)
+        output, data_count = await generate_output(current_remaining_data, train_date, -1) # type: ignore
         # slice = current_remaining_data
         # test_ouput = await get_12306_price_batch(slice, train_date)
         # testnum = 0
@@ -174,13 +181,6 @@ async def handle_next_page(event: Event = None):
     limit_time_start = session['limit_time_start']
     page = session['page'] + 1
 
-    # time1 = datetime.datetime.strptime(limit_time_start, "%Y-%m-%d-%H:%M")
-    # time2 = datetime.datetime.strptime(utils.now_time, "%Y-%m-%d-%H:%M")
-    # time_diff = abs((time1 - time2).total_seconds())
-    # if time_diff > 300: # 五分钟
-    #     del user_sessions[session_key] # 清除会话
-    #     await next_page.finish()
-
     # 判断用户是否超时请求 /下一页
     if (datetime.datetime.now() - session["limit_time_start"]).total_seconds() > 300:
         user_sessions.pop(session_key, None)
@@ -188,7 +188,7 @@ async def handle_next_page(event: Event = None):
 
     await tickets_info.send("正在加载，请耐心等待...")
     hr_line = "------------------------------\n"
-    output, data_count = await generate_output(current_remaining_data, train_date, current_index)
+    output, data_count = await generate_output(current_remaining_data, train_date, current_index) # type: ignore
     await next_page.send(MessageSegment.at(user_id) + "信息如下：\n" + hr_line + output + "---【当前第" + str(page) + "页，共"+ str(content(current_remaining_data)) + "页】---\n数据来源：12306.cn")
 
     if data_count < len(current_remaining_data) -1:

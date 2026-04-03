@@ -1,8 +1,8 @@
 from pyreqwest.client import ClientBuilder
 import re
-import urllib3
-import json
-import asyncio
+# import urllib3
+# import json
+# import asyncio
 from .api import API
 from typing import Optional, List
 
