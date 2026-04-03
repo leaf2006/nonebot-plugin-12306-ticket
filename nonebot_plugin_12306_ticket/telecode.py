@@ -1,3 +1,5 @@
+# Copyright(c) Leafdeveloper 2026
+
 from pyreqwest.client import ClientBuilder # type: ignore
 import re
 # import asyncio

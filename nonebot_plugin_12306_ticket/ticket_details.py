@@ -1,3 +1,5 @@
+# Copyright(c) Leafdeveloper 2026
+
 from .telecode import get_station_name
 # import asyncio
 import datetime
