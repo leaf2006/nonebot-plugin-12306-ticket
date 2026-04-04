@@ -79,6 +79,11 @@ def cleanup_session(session_key):
 @scheduled_query.handle()
 async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg()):
 
+    session_key = event.get_session_id()
+    job_id = f"query_timer_{session_key}"
+    if scheduler.get_job(job_id):
+        cleanup_session(session_key)
+
     none_input_alert = Message([
         "请输入出发站 到达站 出发日期（可选） 列车出发时间范围（可选） 持续查询时间间隔\n",
         "示例：/定时查询 湖州 厦门北 2026-03-25 14-16 10分钟\n",
@@ -99,6 +104,7 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
         # 时间范围为可选参数，先给默认值，避免后续未定义
         range_start_time_raw = ""
         range_end_time_raw = ""
+        scheduled_query_time_raw = ""
 
         for i in range(input_separate_checker):
             current_arg = user_input_separate[i]
@@ -154,6 +160,8 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
         from_station_telecode ,to_station_telecode = await get_telecode(from_station_name_input, to_station_name_input)
         if not (from_station_telecode and to_station_telecode):
             await scheduled_query.finish(none_input_alert)
+        if scheduled_query_time_raw == "":
+            await scheduled_query.finish(none_input_alert)
         
         response_data = await get_12306_remaining_tickets(train_date, from_station_telecode, to_station_telecode)
         if response_data == "ERR":
@@ -191,7 +199,6 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
 
         
         if enable_scheduled_query == True:
-            session_key = event.get_session_id()
             group_id = event.group_id if hasattr(event, "group_id") else None
 
             user_sessions[session_key] = { # 需查询的信息
