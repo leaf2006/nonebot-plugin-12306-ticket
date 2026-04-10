@@ -34,7 +34,7 @@
 <summary>使用 nb-cli 安装</summary>
 在nonebot2项目插件目录下，打开命令行，输入以下安装命令
 
-    pnb plugin install nonebot-plugin-12306-ticket
+    nb plugin install nonebot-plugin-12306-ticket
 
 </details>
 
