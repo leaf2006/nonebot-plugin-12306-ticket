@@ -22,6 +22,8 @@
 
 有些功能因为特殊原因，没有进行全面的测试，如果出现Bug，请您及时<a href="https://github.com/leaf2006/nonebot-plugin-12306-ticket/issues">进行反馈</a>
 
+本插件与<a href="https://github.com/leaf2006/nonebot-plugin-railwaytools">nonebot-plugin-railwaytools</a>插件互补使用更佳
+
 ## 💿 安装
 
 ### Required
