@@ -1,4 +1,5 @@
 # Copyright(c) Leafdeveloper 2026
+# TODO 计划增加精确站名功能
 
 from nonebot import on_command
 from nonebot.params import CommandArg, ArgPlainText  # type: ignore
@@ -8,7 +9,7 @@ from typing import Optional
 import datetime
 from .get_data import get_12306_remaining_tickets,get_12306_price
 from .telecode import get_telecode, get_station_name
-from .ticket_details import time_filter, format_data, get_basic_info, time_range_output
+from .ticket_details import time_filter, format_data, get_basic_info, time_range_output, exact_station_name_filter
 from .utils import utils
 
 require("nonebot_plugin_apscheduler")
@@ -91,6 +92,19 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
     ])
 
     if user_input := args.extract_plain_text():
+        exact_station_status = ""
+        subcommands_list = {
+            ' -精确站名': 'exact_all_name',
+            ' -精确发站': 'exact_from_station_name',
+            ' -精确到站': 'exact_to_station_name',
+        }
+        if " -" in user_input:
+            for subcommands in subcommands_list.keys():
+                if subcommands in user_input:
+                    exact_station_status = subcommands_list[subcommands]
+                    break
+            user_input = user_input.split("-")[0].strip()
+
         user_input_separate = user_input.split(' ')
         input_separate_checker = len(user_input_separate)
         if input_separate_checker > 5 or input_separate_checker < 3:
@@ -171,6 +185,13 @@ async def handle_timer(bot: Bot, event: MessageEvent, args: Message = CommandArg
             await scheduled_query.finish("未查询到符合条件的车次信息")
         # 处理错误结束
 
+        # 精确站名处理
+        if exact_station_status == "exact_all_name":
+            current_remaining_data = exact_station_name_filter(current_remaining_data, from_station_telecode, to_station_telecode)
+        elif exact_station_status == "exact_from_station_name":
+            current_remaining_data = exact_station_name_filter(current_remaining_data, from_station_telecode, None)
+        elif exact_station_status == "exact_to_station_name":
+            current_remaining_data = exact_station_name_filter(current_remaining_data, None, to_station_telecode)
         filtered_remaining_data = time_filter(current_remaining_data, range_start_time, range_end_time) # 根据时间筛选数据
 
         # 查询并输出

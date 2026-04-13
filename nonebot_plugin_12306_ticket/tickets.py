@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import Event
 from nonebot.plugin import PluginMetadata  # type: ignore
 from nonebot.params import CommandArg, ArgPlainText  # type: ignore
 from nonebot.rule import to_me  # type: ignore
-from .ticket_details import format_data, get_basic_info
+from .ticket_details import format_data, get_basic_info, exact_station_name_filter
 from .telecode import get_telecode, get_station_name
 from .get_data import get_12306_remaining_tickets, get_12306_price
 from .api import API
@@ -64,7 +64,19 @@ def content(current_remaining_data): # Fix:翻页问题初步解决
 @tickets_info.handle()
 async def handle_tickets_info(args: Message = CommandArg(), event: Event = None):
     if user_input := args.extract_plain_text():
-
+        exact_station_status = ""
+        subcommands_list = {
+            ' -精确站名': 'exact_all_name',
+            ' -精确发站': 'exact_from_station_name',
+            ' -精确到站': 'exact_to_station_name',
+        }
+        if " -" in user_input:
+            for subcommands in subcommands_list.keys():
+                if subcommands in user_input:
+                    exact_station_status = subcommands_list[subcommands]
+                    break
+            user_input = user_input.split("-")[0].strip()
+        
         # 处理用户输入
         user_input_separate = user_input.split(" ")
         input_separate_checker = len(user_input_separate)
@@ -73,7 +85,7 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
             await tickets_info.finish("格式错误，请输入出发站 到达站 日期（可选）") 
         
         train_date = ""
-        train_no = ""
+        # train_no = ""
         from_station_name_input = ""
         to_station_name_input = ""
         
@@ -130,6 +142,14 @@ async def handle_tickets_info(args: Message = CommandArg(), event: Event = None)
 
         if not current_remaining_data or len(current_remaining_data) == 0:
             await tickets_info.finish("未查询到符合条件的车次信息")
+        
+        # 精确站名处理
+        if exact_station_status == "exact_all_name":
+            current_remaining_data = exact_station_name_filter(current_remaining_data, from_station_telecode, to_station_telecode)
+        elif exact_station_status == "exact_from_station_name":
+            current_remaining_data = exact_station_name_filter(current_remaining_data, from_station_telecode, None)
+        elif exact_station_status == "exact_to_station_name":
+            current_remaining_data = exact_station_name_filter(current_remaining_data, None, to_station_telecode)
         
         #数据整合部分与票价获取
 

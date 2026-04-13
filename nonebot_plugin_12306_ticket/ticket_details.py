@@ -103,7 +103,10 @@ async def get_basic_info(ticket_remaining_data):
 
     return train_no,departure_station_name,terminal_station_name,from_station_name,to_station_name,start_time,end_time,duration # 怎么那么长，不笑都不行
 
-def time_filter(current_remaining_data, range_start_time, range_end_time): # TODO
+def time_filter(current_remaining_data, range_start_time, range_end_time):
+    """
+    时间过滤器
+    """
     if range_start_time == "" or range_end_time == "":
         return current_remaining_data
     else:
@@ -121,3 +124,23 @@ def time_filter(current_remaining_data, range_start_time, range_end_time): # TOD
         
         return filtered_data
     
+def exact_station_name_filter(current_remaining_data, from_station_telecode, to_station_telecode):
+    """
+    精确站名过滤器
+    """
+    filtered_data = []
+    for data_count in range (len(current_remaining_data)):
+        data = current_remaining_data[data_count]
+        p = data.split('|')
+
+        if to_station_telecode == None:
+            if from_station_telecode == p[6]:
+                filtered_data.append(data)
+        elif from_station_telecode == None:
+            if to_station_telecode == p[7]:
+                filtered_data.append(data)
+        else:
+            if from_station_telecode == p[6] and to_station_telecode == p[7]:
+                filtered_data.append(data)
+    
+    return filtered_data
