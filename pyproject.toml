@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-12306-ticket"
-version = "0.1.1"
+version = "0.1.2"
 description = "12306车票查询机器人，助你漫漫回家路"
 authors = [
     { name = "leaf2006", email = "leafdeveloper@qq.com" }
